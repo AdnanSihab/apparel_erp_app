@@ -63,6 +63,8 @@ THREAD_REORDER_QTY = 100
 
 # The fabric history below works out to:
 #   usage       = (180 + 170 + 160) m issued in 30 days = 17 m a day
+#   (all consumption is dated within the last 11 days, so the 30-day usage window
+#   keeps every issue, and these numbers hold, for 19 days after seeding)
 #   lead time   = (9 + 7) / 2 = 8 days  ->  reliability 6 / 8 = 75 %
 #   reorder at  = 17 x 8 + 150 = 286 m      stock in Stores = 600 m
 LIVE_TRANSFER = 330  # leaves 270 m in Stores, under the 286 m level
@@ -187,21 +189,21 @@ def build_history():
 	receive(FABRIC_SUPPLIER, [(FABRIC, 500, FABRIC_RATE)], -28, -21, batch_no=LOT_2[0])  # 7 days
 	receive(TRIM_SUPPLIER, [(THREAD, 120, 185)], -26, -22)  # 4 days, on time
 
-	make_stock_entry("Material Transfer", FABRIC, 600, source=stores, target=wip, batch_no=LOT_1[0], rate=FABRIC_RATE, posting_date=day(-20))
-	step(f"Stock Entry     600 m of {LOT_1[0]} to the cutting floor on {day(-20)}")
+	make_stock_entry("Material Transfer", FABRIC, 600, source=stores, target=wip, batch_no=LOT_1[0], rate=FABRIC_RATE, posting_date=day(-12))
+	step(f"Stock Entry     600 m of {LOT_1[0]} to the cutting floor on {day(-12)}")
 
-	for offset, qty, wastage in ((-18, 180, 6), (-12, 170, 5.5), (-5, 160, 4)):
+	for offset, qty, wastage in ((-10, 180, 6), (-7, 170, 5.5), (-3, 160, 4)):
 		make_stock_entry(
 			"Material Issue", FABRIC, qty, source=wip, batch_no=LOT_1[0], rate=FABRIC_RATE,
 			posting_date=day(offset), custom_wastage_scrap_qty=wastage,
 		)
 		step(f"Stock Entry     {qty} m cut on {day(offset)}, wastage {wastage} m")
 
-	make_stock_entry("Material Issue", THREAD, 40, source=stores, rate=185, posting_date=day(-15))
-	step(f"Stock Entry     40 thread cones issued to the sewing lines on {day(-15)}")
+	make_stock_entry("Material Issue", THREAD, 40, source=stores, rate=185, posting_date=day(-11))
+	step(f"Stock Entry     40 thread cones issued to the sewing lines on {day(-11)}")
 	build_completed_reorder_cycle()
-	make_stock_entry("Material Issue", THREAD, 35, source=stores, rate=185, posting_date=day(-3))
-	step(f"Stock Entry     35 thread cones issued to the sewing lines on {day(-3)}")
+	make_stock_entry("Material Issue", THREAD, 35, source=stores, rate=185, posting_date=day(-2))
+	step(f"Stock Entry     35 thread cones issued to the sewing lines on {day(-2)}")
 
 	build_finished_goods_flow(wip, fg)
 
@@ -220,22 +222,22 @@ def build_completed_reorder_cycle():
 			"doctype": "Material Request",
 			"material_request_type": "Purchase",
 			"company": COMPANY,
-			"transaction_date": day(-12),
-			"schedule_date": day(-5),
+			"transaction_date": day(-10),
+			"schedule_date": day(-3),
 			"custom_generated_by": "Auto-Reorder Script",
 			"custom_auto_generated": 1,
-			"items": [{"item_code": THREAD, "qty": THREAD_REORDER_QTY, "warehouse": stores, "schedule_date": day(-5)}],
+			"items": [{"item_code": THREAD, "qty": THREAD_REORDER_QTY, "warehouse": stores, "schedule_date": day(-3)}],
 		}
 	).insert(ignore_permissions=True)
 	mr.submit()
-	step(f"Material Request {mr.name}  auto-generated on {day(-12)}, {THREAD_REORDER_QTY} cones")
+	step(f"Material Request {mr.name}  auto-generated on {day(-10)}, {THREAD_REORDER_QTY} cones")
 
 	po = po_from_request(mr.name)
 	po.supplier = TRIM_SUPPLIER
-	po.transaction_date = day(-12)
+	po.transaction_date = day(-10)
 	for row in po.items:
 		row.rate = 185
-		row.schedule_date = day(-5)
+		row.schedule_date = day(-3)
 	po.insert(ignore_permissions=True)
 	po.submit()
 
@@ -243,10 +245,10 @@ def build_completed_reorder_cycle():
 
 	pr = make_purchase_receipt(po.name)
 	pr.set_posting_time = 1
-	pr.posting_date = day(-8)  # 4 days, as promised
+	pr.posting_date = day(-6)  # 4 days, as promised
 	pr.insert(ignore_permissions=True)
 	pr.submit()
-	step(f"Purchase Order  {po.name}  made from {mr.name}  ->  Purchase Receipt {pr.name} on {day(-8)}")
+	step(f"Purchase Order  {po.name}  made from {mr.name}  ->  Purchase Receipt {pr.name} on {day(-6)}")
 
 
 def build_finished_goods_flow(wip, fg):
@@ -364,12 +366,13 @@ def _purge():
 	items = _demo_items()
 	suppliers = [FABRIC_SUPPLIER, TRIM_SUPPLIER]
 
-	_cancel_and_delete("Material Request", _parents("Material Request Item", items))
 	entries = _parents("Stock Entry Detail", items)
 	entries.sort(key=lambda name: str(frappe.db.get_value("Stock Entry", name, "posting_date")), reverse=True)
 	_cancel_and_delete("Stock Entry", entries)
 	_cancel_and_delete("Purchase Receipt", frappe.get_all("Purchase Receipt", filters={"supplier": ["in", suppliers]}, pluck="name"))
 	_cancel_and_delete("Purchase Order", frappe.get_all("Purchase Order", filters={"supplier": ["in", suppliers]}, pluck="name"))
+	# requests last: ERPNext refuses to cancel a request while an order made from it exists
+	_cancel_and_delete("Material Request", _parents("Material Request Item", items))
 	_cancel_and_delete("Supplier Scorecard", frappe.get_all("Supplier Scorecard", filters={"supplier": ["in", suppliers]}, pluck="name"))
 	_cancel_and_delete("Storage Bin", [b[0] for b in BINS if frappe.db.exists("Storage Bin", b[0])])
 	_cancel_and_delete("Batch", [b for b, _ in (LOT_1, LOT_2) if frappe.db.exists("Batch", b)])
