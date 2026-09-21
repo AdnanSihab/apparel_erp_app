@@ -218,7 +218,7 @@ def open_auto_requests(item_code: str, warehouse_name: str) -> list[str]:
 		filters={
 			"custom_auto_generated": 1,
 			"docstatus": 1,
-			"status": ["not in", ["Stopped", "Cancelled"]],
+			"status": ["not in", ["Stopped", "Cancelled", "Ordered", "Received"]],
 			"name": ["in", frappe.get_all(
 				"Material Request Item",
 				filters={"item_code": item_code, "warehouse": warehouse_name},

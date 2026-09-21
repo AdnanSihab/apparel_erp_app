@@ -197,13 +197,88 @@ def build_history():
 		)
 		step(f"Stock Entry     {qty} m cut on {day(offset)}, wastage {wastage} m")
 
-	for offset, cones in ((-15, 40), (-3, 35)):
-		make_stock_entry("Material Issue", THREAD, cones, source=stores, rate=185, posting_date=day(offset))
-	step("Stock Entry     75 thread cones issued to the sewing lines")
+	make_stock_entry("Material Issue", THREAD, 40, source=stores, rate=185, posting_date=day(-15))
+	step(f"Stock Entry     40 thread cones issued to the sewing lines on {day(-15)}")
+	build_completed_reorder_cycle()
+	make_stock_entry("Material Issue", THREAD, 35, source=stores, rate=185, posting_date=day(-3))
+	step(f"Stock Entry     35 thread cones issued to the sewing lines on {day(-3)}")
 
-	for colour, size, pieces in (("Black", "Medium", 240), ("White", "Large", 180), ("Blue", "Small", 150)):
-		make_stock_entry("Material Receipt", _variant(colour, size), pieces, target=fg, rate=410, posting_date=day(-2))
-	step("Stock Entry     570 finished T-shirts booked into Finished Goods")
+	build_finished_goods_flow(wip, fg)
+
+
+def build_completed_reorder_cycle():
+	"""What happens after the engine raises a request: procurement orders it and it is received.
+
+	The thread request below is shaped exactly like one the daily job raises, so the Material
+	Request list and the dashboard's reorder trend have a finished cycle to show.
+	"""
+	from erpnext.stock.doctype.material_request.mapper import make_purchase_order as po_from_request
+
+	stores = warehouse("Stores")
+	mr = frappe.get_doc(
+		{
+			"doctype": "Material Request",
+			"material_request_type": "Purchase",
+			"company": COMPANY,
+			"transaction_date": day(-12),
+			"schedule_date": day(-5),
+			"custom_generated_by": "Auto-Reorder Script",
+			"custom_auto_generated": 1,
+			"items": [{"item_code": THREAD, "qty": THREAD_REORDER_QTY, "warehouse": stores, "schedule_date": day(-5)}],
+		}
+	).insert(ignore_permissions=True)
+	mr.submit()
+	step(f"Material Request {mr.name}  auto-generated on {day(-12)}, {THREAD_REORDER_QTY} cones")
+
+	po = po_from_request(mr.name)
+	po.supplier = TRIM_SUPPLIER
+	po.transaction_date = day(-12)
+	for row in po.items:
+		row.rate = 185
+		row.schedule_date = day(-5)
+	po.insert(ignore_permissions=True)
+	po.submit()
+
+	from erpnext.buying.doctype.purchase_order.mapper import make_purchase_receipt
+
+	pr = make_purchase_receipt(po.name)
+	pr.set_posting_time = 1
+	pr.posting_date = day(-8)  # 4 days, as promised
+	pr.insert(ignore_permissions=True)
+	pr.submit()
+	step(f"Purchase Order  {po.name}  made from {mr.name}  ->  Purchase Receipt {pr.name} on {day(-8)}")
+
+
+def build_finished_goods_flow(wip, fg):
+	"""Sewn T-shirts leave the line, go to Finished Goods, and part of them is despatched."""
+	sewn = [("Black", "Medium", 240), ("White", "Large", 180), ("Blue", "Small", 150)]
+	rows = [(_variant(colour, size), pieces) for colour, size, pieces in sewn]
+
+	_multi_entry("Material Receipt", rows, day(-3), target=wip)
+	step(f"Stock Entry     {sum(p for _, p in rows)} T-shirts booked off the sewing line into Work In Progress")
+	_multi_entry("Material Transfer", rows, day(-2), source=wip, target=fg)
+	step("Stock Entry     the same T-shirts moved Work In Progress -> Finished Goods")
+	despatch = [(rows[0][0], 120)]
+	_multi_entry("Material Transfer", despatch, day(-1), source=fg, target=warehouse("Goods In Transit"))
+	step(f"Stock Entry     120 x {rows[0][0]} despatched: Finished Goods -> Goods In Transit")
+
+
+def _multi_entry(entry_type, rows, posting_date, source=None, target=None):
+	entry = frappe.get_doc(
+		{
+			"doctype": "Stock Entry",
+			"stock_entry_type": entry_type,
+			"company": COMPANY,
+			"set_posting_time": 1,
+			"posting_date": posting_date,
+			"items": [
+				{"item_code": item, "qty": qty, "s_warehouse": source, "t_warehouse": target, "basic_rate": 410}
+				for item, qty in rows
+			],
+		}
+	).insert(ignore_permissions=True)
+	entry.submit()
+	return entry
 
 
 def _variant(colour, size):
@@ -322,8 +397,10 @@ def print_walkthrough(rule):
 	print(f"    6. Purchase Receipt    received from {FABRIC_SUPPLIER}")
 	print(f"    7. Supplier Scorecard  promised {card.promised_lead_time_days} days, measured {flt(card.actual_average_lead_time_days):.1f}, reliability {flt(card.reliability_score):.0f} %")
 	print("    8. Stock Entry         transfers and issues with cutting wastage")
-	print("    9. /app/apparel-inventory-dashboard   stock value, dead stock (the 20L buttons), supplier reliability")
-	print("   10. /app/dashboard-view/Supplier Performance\n")
+	print(f"    9. Material Request    the earlier auto-generated thread request -> Purchase Order -> received")
+	print("   10. Stock Balance       T-shirts: Work In Progress -> Finished Goods -> Goods In Transit")
+	print("   11. /app/apparel-inventory-dashboard   stock value, reorder trend, dead stock (the 20L buttons), reliability")
+	print("   12. /app/dashboard-view/Supplier Performance\n")
 	print(f"  Fabric in Stores now: {in_stores:,.0f} m    reorder level: {level:,.2f} m   (healthy)\n")
 	print("  Then, live:\n")
 	print(f"    a. New Stock Entry -> Material Transfer, {FABRIC}, {LIVE_TRANSFER} m,")
