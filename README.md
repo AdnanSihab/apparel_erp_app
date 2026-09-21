@@ -12,6 +12,23 @@ bench get-app $URL_OF_THIS_REPO --branch main
 bench install-app apparel_track
 ```
 
+### Tests and demonstration
+
+All tests live in `apparel_track/tests/`:
+
+| File | What it covers |
+|---|---|
+| `test_table_10_1.py` | T1-T10 from Table 10.1 of the report, plus follow-on checks (runs on the site, rolled back) |
+| `test_rules.py` | the reorder level formula and the reliability score (no database) |
+| `demo_scenarios.py` | terminal walkthrough of 14 scenarios with PASS/FAIL (rolled back) |
+| `seed_demo_data.py` | builds the presentation data (`seed`) and removes it (`reset`) |
+
+```bash
+bench --site apparel-site run-tests --app apparel_track
+bench --site apparel-site execute apparel_track.tests.demo_scenarios.run
+bench --site apparel-site execute apparel_track.tests.seed_demo_data.seed
+```
+
 ### Contributing
 
 This app uses `pre-commit` for code formatting and linting. Please [install pre-commit](https://pre-commit.com/#installation) and enable it for this repository:

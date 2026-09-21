@@ -223,11 +223,23 @@ def ensure_supplier_performance_workspace_link():
 		frappe.db.commit()
 
 
+def disable_erpnext_auto_reorder():
+	"""The app's reorder engine replaces ERPNext's own, which reads the same Item Reorder rules.
+
+	With both switched on every shortage would get two Material Requests, and ERPNext's
+	copy carries no auto-generated flag and skips the duplicate guard.
+	"""
+	if frappe.db.get_single_value("Stock Settings", "auto_indent"):
+		frappe.db.set_single_value("Stock Settings", "auto_indent", 0)
+		frappe.db.commit()
+
+
 def ensure_item_attributes():
 	"""Create the colour and size values used by apparel item variants."""
+	# value -> abbreviation; ERPNext builds variant item codes from the abbreviations
 	for attribute_name, values in {
-		"Colour": ["Black", "Blue", "Green", "Red", "White"],
-		"Size": ["Extra Small", "Small", "Medium", "Large", "Extra Large"],
+		"Colour": {"Black": "BLA", "Blue": "BLU", "Green": "GRE", "Red": "RED", "White": "WHI"},
+		"Size": {"Extra Small": "XS", "Small": "S", "Medium": "M", "Large": "L", "Extra Large": "XL"},
 	}.items():
 		attribute = frappe.db.exists("Item Attribute", attribute_name)
 		if attribute:
@@ -236,7 +248,9 @@ def ensure_item_attributes():
 			{
 				"doctype": "Item Attribute",
 				"attribute_name": attribute_name,
-				"item_attribute_values": [{"attribute_value": value} for value in values],
+				"item_attribute_values": [
+					{"attribute_value": value, "abbr": abbr} for value, abbr in values.items()
+				],
 			}
 		).insert(ignore_permissions=True)
 	frappe.db.commit()
@@ -360,6 +374,7 @@ def install_apparel_metadata():
 	ensure_supplier_performance_page()
 	ensure_supplier_performance_workspace_link()
 	ensure_item_attributes()
+	disable_erpnext_auto_reorder()
 	ensure_warehouse_tree()
 
 
