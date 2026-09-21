@@ -1,0 +1,88 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:supplier",
+ "creation": "2026-08-30 00:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "supplier",
+  "item_group",
+  "promised_lead_time_days",
+  "actual_average_lead_time_days",
+  "reliability_score",
+  "last_updated_on",
+  "remarks"
+ ],
+ "fields": [
+  {
+   "fieldname": "supplier",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Supplier",
+   "options": "Supplier",
+   "reqd": 1
+  },
+  {
+   "fieldname": "item_group",
+   "fieldtype": "Link",
+   "label": "Item Category / Group",
+   "options": "Item Group"
+  },
+  {
+   "fieldname": "promised_lead_time_days",
+   "fieldtype": "Int",
+   "label": "Promised Lead Time (Days)",
+   "default": 0
+  },
+  {
+   "fieldname": "actual_average_lead_time_days",
+   "fieldtype": "Float",
+   "label": "Actual Average Lead Time (Days)",
+   "default": 0
+  },
+  {
+   "fieldname": "reliability_score",
+   "fieldtype": "Percent",
+   "label": "Reliability Score",
+   "default": 0
+  },
+  {
+   "fieldname": "last_updated_on",
+   "fieldtype": "Date",
+   "label": "Last Updated On"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Text Editor",
+   "label": "Remarks"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-08-30 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Apparel Track",
+ "name": "Supplier Scorecard",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "modified",
+ "sort_order": "DESC",
+ "states": []
+}

@@ -1,0 +1,76 @@
+{
+ "actions": [],
+ "allow_bulk_edit": 1,
+ "allow_rename": 1,
+ "creation": "2026-06-09 04:42:59.274814",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "bin_id",
+  "warehouse",
+  "column_break_kdkm",
+  "current_item",
+  "max_capacity",
+  "barcode_qr_code"
+ ],
+ "fields": [
+  {
+   "fieldname": "bin_id",
+   "fieldtype": "Data",
+   "label": "Bin ID"
+  },
+  {
+   "fieldname": "column_break_kdkm",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "warehouse",
+   "fieldtype": "Link",
+   "label": "Warehouse",
+   "options": "Warehouse"
+  },
+  {
+   "fieldname": "current_item",
+   "fieldtype": "Link",
+   "label": "Current Item",
+   "options": "Item"
+  },
+  {
+   "fieldname": "max_capacity",
+   "fieldtype": "Float",
+   "label": "Max Capacity"
+  },
+  {
+   "fieldname": "barcode_qr_code",
+   "fieldtype": "Data",
+   "label": "Barcode/ QR Code"
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "links": [],
+ "modified": "2026-06-09 04:45:51.535872",
+ "modified_by": "Administrator",
+ "module": "Apparel Track",
+ "name": "Storage Bin",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}
