@@ -85,16 +85,23 @@ jobs:
           pip install frappe-bench
           bench init --skip-redis-config-generation --skip-assets --python "$(which python)" ~/frappe-bench
 
-      - name: Install
+      - name: Get apps
         working-directory: /home/runner/frappe-bench
         run: |
           # apparel_track is built on ERPNext's stock and buying modules
           bench get-app erpnext --branch develop
           bench get-app apparel_track $GITHUB_WORKSPACE
           bench setup requirements --dev
+
+      - name: Create site with ERPNext
+        working-directory: /home/runner/frappe-bench
+        run: |
           bench new-site --db-root-password root --admin-password admin test_site
           bench --site test_site install-app erpnext
 
+      - name: Set up the Apparel Tracking company
+        working-directory: /home/runner/frappe-bench
+        run: |
           # the tests expect the company the report describes: Apparel Tracking (AT), Bangladesh
           YEAR=$(date +%Y)
           bench --site test_site execute frappe.desk.page.setup_wizard.setup_wizard.setup_complete \
@@ -102,8 +109,11 @@ jobs:
           # some tests back-date documents, so the previous year must be open too
           bench --site test_site execute frappe.client.insert \
             --kwargs "{'doc': {'doctype': 'Fiscal Year', 'year': '$((YEAR - 1))', 'year_start_date': '$((YEAR - 1))-01-01', 'year_end_date': '$((YEAR - 1))-12-31'}}"
+          bench --site test_site execute frappe.db.get_value --args "['Company', 'Apparel Tracking', 'abbr']"
 
-          bench --site test_site install-app apparel_track
+      - name: Install apparel_track
+        working-directory: /home/runner/frappe-bench
+        run: bench --site test_site install-app apparel_track
         env:
           CI: 'Yes'
 
