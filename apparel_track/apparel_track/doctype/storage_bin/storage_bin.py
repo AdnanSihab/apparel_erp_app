@@ -15,10 +15,10 @@ class StorageBin(Document):
 		from frappe.types import DF
 
 		barcode_qr_code: DF.Data | None
-		bin_id: DF.Data | None
+		bin_id: DF.Data
 		current_item: DF.Link | None
 		max_capacity: DF.Float
-		warehouse: DF.Link | None
+		warehouse: DF.Link
 	# end: auto-generated types
 
 	_DOCTYPE_NAME = "Storage Bin"

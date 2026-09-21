@@ -35,6 +35,8 @@ class IntegrationTestStorageBin(IntegrationTestCase):
 		).insert(ignore_permissions=True)
 		self.addCleanup(lambda: frappe.delete_doc("Storage Bin", bin_doc.name, ignore_permissions=True))
 
-		result = frappe.call("erpnext.stock.utils.scan_barcode", search_value=barcode)
+		from apparel_track.apparel_track.barcode import scan_barcode
+
+		result = scan_barcode(barcode)
 
 		self.assertEqual(result["warehouse"], warehouse[0])

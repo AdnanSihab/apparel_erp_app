@@ -14,7 +14,7 @@ class Season(Document):
 	if TYPE_CHECKING:
 		from frappe.types import DF
 
-		name1: DF.Data | None
+		season_name: DF.Data
 	# end: auto-generated types
 
 	_DOCTYPE_NAME = "Season"

@@ -12,13 +12,8 @@ def daily_reorder_check():
 	process_reorder_engine()
 
 
-def generate_apparel_dashboard_snapshot():
-	"""Return the inventory and supplier KPIs used by the apparel dashboard."""
-	return get_apparel_dashboard_data()
-
-
 @frappe.whitelist()
-def get_apparel_dashboard_data(days=30, dead_stock_days=30):
+def get_apparel_dashboard_data(days: int = 30, dead_stock_days: int = 30) -> dict:
 	"""Build dashboard data from stock, reorder, and supplier transaction history."""
 	days = max(int(days or 30), 1)
 	dead_stock_days = max(int(dead_stock_days or 30), 1)
@@ -74,7 +69,10 @@ def get_apparel_dashboard_data(days=30, dead_stock_days=30):
 	)
 	return {
 		"critical_stockouts": frappe.db.count("Bin", {"actual_qty": 0}),
-		"pending_material_requests": frappe.db.count("Material Request", {"docstatus": 0}),
+		"pending_material_requests": frappe.db.count(
+			"Material Request",
+			{"docstatus": 1, "status": ["in", ["Pending", "Partially Ordered"]]},
+		),
 		"stock_value_by_warehouse": stock_value_by_warehouse,
 		"dead_stock_ageing": dead_stock_ageing,
 		"reorder_triggers": reorder_triggers,
@@ -83,7 +81,7 @@ def get_apparel_dashboard_data(days=30, dead_stock_days=30):
 
 
 @frappe.whitelist()
-def get_supplier_performance_data():
+def get_supplier_performance_data() -> list:
 	"""Return supplier-level promised and actual lead-time performance."""
 	return frappe.db.sql(
 		"""

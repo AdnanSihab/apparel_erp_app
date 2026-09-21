@@ -85,7 +85,6 @@ app_include_js = "/assets/apparel_track/js/apparel_track.js"
 # Installation
 # ------------
 
-before_install = "apparel_track.apparel_track.custom_field_setup.setup_apparel_customizations"
 after_install = "apparel_track.apparel_track.custom_field_setup.setup_apparel_customizations"
 
 # Uninstallation
@@ -157,9 +156,6 @@ scheduler_events = {
 	"daily": [
 		"apparel_track.apparel_track.tasks.daily_reorder_check",
 	],
-	"monthly": [
-		"apparel_track.apparel_track.tasks.generate_apparel_dashboard_snapshot",
-	],
 }
 
 after_migrate = "apparel_track.apparel_track.setup.after_migrate"
@@ -180,9 +176,10 @@ after_migrate = "apparel_track.apparel_track.setup.after_migrate"
 # Overriding Methods
 # ------------------------------
 #
-# override_whitelisted_methods = {
-# 	"frappe.desk.doctype.event.event.get_events": "apparel_track.event.get_events"
-# }
+override_whitelisted_methods = {
+	# lets a Storage Bin barcode be scanned like a warehouse, without editing ERPNext core
+	"erpnext.stock.utils.scan_barcode": "apparel_track.apparel_track.barcode.scan_barcode",
+}
 #
 # each overriding function accepts a `data` argument;
 # generated from the base implementation of the doctype dashboard,

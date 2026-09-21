@@ -21,14 +21,20 @@ class SupplierScorecard(Document):
 		if not pr.supplier:
 			return
 
+		if not pr.posting_date:
+			return
+
+		# one delivery per purchase order and item group, however many lines it has
+		deliveries = set()
 		for item in pr.items:
-			if not item.purchase_order or not pr.posting_date:
+			if not item.purchase_order:
 				continue
 			item_group = item.item_group or frappe.db.get_value("Item", item.item_code, "item_group")
-			if not item_group:
-				continue
+			if item_group:
+				deliveries.add((item_group, item.purchase_order))
 
-			po_date = frappe.db.get_value("Purchase Order", item.purchase_order, "transaction_date")
+		for item_group, purchase_order in sorted(deliveries):
+			po_date = frappe.db.get_value("Purchase Order", purchase_order, "transaction_date")
 			if not po_date:
 				continue
 
@@ -40,14 +46,22 @@ class SupplierScorecard(Document):
 			) / (counted + 1)
 			record.receipts_counted = counted + 1
 			record.last_updated_on = frappe.utils.nowdate()
-			promised = flt(record.promised_lead_time_days)
-			record.reliability_score = min(
-				flt(promised / record.actual_average_lead_time_days * 100)
-				if promised and record.actual_average_lead_time_days
-				else 0,
-				100,
+			record.reliability_score = SupplierScorecard.get_reliability_score(
+				record.promised_lead_time_days, record.actual_average_lead_time_days
 			)
 			record.save(ignore_permissions=True)
+
+	@staticmethod
+	def get_reliability_score(promised_days, actual_days) -> float:
+		"""Promised lead time / measured average lead time, as a percentage capped at 100."""
+		promised = flt(promised_days)
+		if not promised:
+			return 0
+		actual = flt(actual_days)
+		if actual <= 0:
+			# delivered on the order date: faster than any promise
+			return 100
+		return min(flt(promised / actual * 100), 100)
 
 	@staticmethod
 	def _get_scorecard(supplier: str, item_group: str):
@@ -61,7 +75,6 @@ class SupplierScorecard(Document):
 			return frappe.get_doc("Supplier Scorecard", name)
 
 		record = frappe.new_doc("Supplier Scorecard")
-		record.name = f"{supplier}-{item_group}"
 		record.supplier = supplier
 		record.item_group = item_group
 		return record

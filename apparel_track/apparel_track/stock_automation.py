@@ -13,56 +13,59 @@ def get_default_bin_for_item(item_code: str, warehouse: str):
 	if bin_name:
 		return frappe.get_doc("Storage Bin", bin_name)
 
+	bin_id = f"{warehouse}-{item_code}-BIN"
+	if frappe.db.exists("Storage Bin", bin_id):
+		return frappe.get_doc("Storage Bin", bin_id)
+
 	bin = frappe.get_doc(
 		{
 			"doctype": "Storage Bin",
-			"bin_id": f"{warehouse}-{item_code}-BIN",
+			"bin_id": bin_id,
 			"warehouse": warehouse,
 			"current_item": item_code,
 			"max_capacity": 10000,
+			# every bin gets a scannable code; it can be replaced with the printed rack label
+			"barcode_qr_code": bin_id,
 		}
 	)
 	bin.insert(ignore_permissions=True)
-	frappe.db.commit()
 	return bin
 
 
 def update_storage_bin_on_stock_entry(stock_entry_name: str):
-	"""Synchronize storage bin data with Stock Entry movements."""
+	"""Assign a storage bin in the target warehouse for stock coming into a warehouse."""
 	entry = frappe.get_doc("Stock Entry", stock_entry_name)
-	if not entry.items:
+	if entry.stock_entry_type not in ["Material Receipt", "Material Transfer", "Manufacture"]:
 		return
 
 	for item in entry.items:
-		if not item.item_code or not entry.to_warehouse:
+		target_warehouse = item.t_warehouse or entry.to_warehouse
+		if not item.item_code or not target_warehouse:
 			continue
 
-		if entry.stock_entry_type in ["Material Receipt", "Material Transfer", "Manufacture"]:
-			bin_doc = get_default_bin_for_item(item.item_code, entry.to_warehouse)
+		bin_doc = get_default_bin_for_item(item.item_code, target_warehouse)
+		if bin_doc.current_item != item.item_code:
 			bin_doc.current_item = item.item_code
 			bin_doc.save(ignore_permissions=True)
-
-		if entry.from_warehouse and entry.stock_entry_type in ["Material Issue", "Material Transfer"]:
-			bin_doc = get_default_bin_for_item(item.item_code, entry.from_warehouse)
-			bin_doc.current_item = item.item_code
-			bin_doc.save(ignore_permissions=True)
-
-	frappe.db.commit()
 
 
 def update_batch_tracking_from_stock_entry(stock_entry_name: str):
-	"""Attach manufacturer batch metadata to stock entries and calculate roll lengths."""
+	"""Fill in missing dye lot and roll length on batches booked in by a Material Receipt."""
 	entry = frappe.get_doc("Stock Entry", stock_entry_name)
+	if entry.stock_entry_type != "Material Receipt":
+		return
+
 	for item in entry.items:
 		if not item.batch_no:
 			continue
 		batch = frappe.get_doc("Batch", item.batch_no)
+		if batch.custom_dye_lot_number and batch.custom_roll_length_meters:
+			continue
 		if not batch.custom_dye_lot_number:
 			batch.custom_dye_lot_number = batch.name
 		if not batch.custom_roll_length_meters:
-			batch.custom_roll_length_meters = flt(item.qty) or 0
+			batch.custom_roll_length_meters = flt(item.transfer_qty) or 0
 		batch.save(ignore_permissions=True)
-	frappe.db.commit()
 
 
 def process_inventory_on_submit(doc, method):

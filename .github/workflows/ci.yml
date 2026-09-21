@@ -3,11 +3,11 @@ name: CI
 on:
   push:
     branches:
-      - develop
+      - main
   pull_request:
 
 concurrency:
-  group: develop-apparel_track-${{ github.event.number }}
+  group: main-apparel_track-${{ github.event.number }}
   cancel-in-progress: true
 
 jobs:

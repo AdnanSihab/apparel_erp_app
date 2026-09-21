@@ -1,7 +1,7 @@
 {
  "actions": [],
  "allow_rename": 1,
- "autoname": "field:supplier",
+ "autoname": "format:{supplier}-{item_group}",
  "creation": "2026-08-30 00:00:00.000000",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -27,25 +27,26 @@
    "fieldname": "item_group",
    "fieldtype": "Link",
    "label": "Item Category / Group",
-   "options": "Item Group"
+   "options": "Item Group",
+   "reqd": 1
   },
   {
+   "default": 0,
    "fieldname": "promised_lead_time_days",
    "fieldtype": "Int",
-   "label": "Promised Lead Time (Days)",
-   "default": 0
+   "label": "Promised Lead Time (Days)"
   },
   {
+   "default": 0,
    "fieldname": "actual_average_lead_time_days",
    "fieldtype": "Float",
-   "label": "Actual Average Lead Time (Days)",
-   "default": 0
+   "label": "Actual Average Lead Time (Days)"
   },
   {
+   "default": 0,
    "fieldname": "reliability_score",
    "fieldtype": "Percent",
-   "label": "Reliability Score",
-   "default": 0
+   "label": "Reliability Score"
   },
   {
    "fieldname": "last_updated_on",
@@ -61,10 +62,11 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-08-30 00:00:00.000000",
+ "modified": "2026-09-21 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Apparel Track",
  "name": "Supplier Scorecard",
+ "naming_rule": "Expression",
  "owner": "Administrator",
  "permissions": [
   {

@@ -2,6 +2,7 @@
  "actions": [],
  "allow_bulk_edit": 1,
  "allow_rename": 1,
+ "autoname": "field:bin_id",
  "creation": "2026-06-09 04:42:59.274814",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -17,7 +18,10 @@
   {
    "fieldname": "bin_id",
    "fieldtype": "Data",
-   "label": "Bin ID"
+   "in_list_view": 1,
+   "label": "Bin ID",
+   "reqd": 1,
+   "unique": 1
   },
   {
    "fieldname": "column_break_kdkm",
@@ -26,8 +30,10 @@
   {
    "fieldname": "warehouse",
    "fieldtype": "Link",
+   "in_list_view": 1,
    "label": "Warehouse",
-   "options": "Warehouse"
+   "options": "Warehouse",
+   "reqd": 1
   },
   {
    "fieldname": "current_item",
@@ -43,16 +49,18 @@
   {
    "fieldname": "barcode_qr_code",
    "fieldtype": "Data",
-   "label": "Barcode/ QR Code"
+   "label": "Barcode/ QR Code",
+   "unique": 1
   }
  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-06-09 04:45:51.535872",
+ "modified": "2026-09-21 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Apparel Track",
  "name": "Storage Bin",
+ "naming_rule": "By fieldname",
  "owner": "Administrator",
  "permissions": [
   {

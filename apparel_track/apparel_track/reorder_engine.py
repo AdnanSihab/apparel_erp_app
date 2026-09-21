@@ -28,11 +28,11 @@ def get_bin_stock_for_item(item_code: str, warehouse: str | None = None):
 
 
 def get_average_daily_usage(item_code: str, days: int = 30):
-	"""Return average consumed quantity per day from submitted material issues."""
+	"""Return average consumed quantity per day (in stock UOM) from submitted material issues."""
 	start_date = frappe.utils.add_days(frappe.utils.nowdate(), -days)
 	consumed = frappe.db.sql(
 		"""
-		select coalesce(sum(sed.qty), 0)
+		select coalesce(sum(sed.transfer_qty), 0)
 		from `tabStock Entry Detail` sed
 		join `tabStock Entry` se on se.name = sed.parent
 		where se.docstatus = 1
@@ -95,6 +95,7 @@ def create_material_request_for_reorder(item_code: str, warehouse: str, reorder_
 		from `tabMaterial Request Item` mri
 		join `tabMaterial Request` mr on mr.name = mri.parent
 		where mr.docstatus in (0, 1)
+			and mr.status not in ('Stopped', 'Cancelled')
 			and mr.material_request_type = 'Purchase'
 			and mri.item_code = %s
 			and mri.warehouse = %s
@@ -130,40 +131,44 @@ def create_material_request_for_reorder(item_code: str, warehouse: str, reorder_
 
 def process_reorder_engine_for_warehouse(warehouse: str | None = None):
 	"""Scan Item Reorder rows and create missing Material Requests."""
-	items = frappe.get_all("Item", filters={"is_stock_item": 1}, fields=["name"], limit_page_length=0)
-	for item in items:
-		item_doc = frappe.get_doc("Item", item.name)
-		if item_doc.reorder_levels:
-			update_item_reorder_levels(item_doc, None)
-			item_doc.save(ignore_permissions=True)
-		for row in item_doc.reorder_levels:
-			if warehouse and row.warehouse != warehouse:
-				continue
-			actual_qty = get_bin_stock_for_item(item_doc.name, row.warehouse)
-			if actual_qty > flt(row.warehouse_reorder_level):
-				continue
-			if flt(row.warehouse_reorder_qty) <= 0:
-				continue
-			create_material_request_for_reorder(
-				item_code=item_doc.name,
-				warehouse=row.warehouse,
-				reorder_qty=row.warehouse_reorder_qty,
-			)
+	items = frappe.get_all(
+		"Item",
+		filters={"is_stock_item": 1, "disabled": 0, "has_variants": 0},
+		pluck="name",
+		limit_page_length=0,
+	)
+	for item_code in items:
+		try:
+			_process_item_reorder(item_code, warehouse)
+		except Exception:
+			# one bad item must not stop the reorder check for every other item
+			frappe.db.rollback()
+			frappe.log_error(f"Apparel Track reorder check failed for {item_code}")
+
+
+def _process_item_reorder(item_code: str, warehouse: str | None = None):
+	item_doc = frappe.get_doc("Item", item_code)
+	if not item_doc.reorder_levels:
+		return
+
+	# saving runs the Item validate hook, which recalculates each reorder level
+	item_doc.save(ignore_permissions=True)
+	for row in item_doc.reorder_levels:
+		if warehouse and row.warehouse != warehouse:
+			continue
+		actual_qty = get_bin_stock_for_item(item_doc.name, row.warehouse)
+		if actual_qty > flt(row.warehouse_reorder_level):
+			continue
+		if flt(row.warehouse_reorder_qty) <= 0:
+			continue
+		create_material_request_for_reorder(
+			item_code=item_doc.name,
+			warehouse=row.warehouse,
+			reorder_qty=row.warehouse_reorder_qty,
+		)
+	frappe.db.commit()
 
 
 def process_reorder_engine():
 	"""Daily job entry point for the reorder engine."""
 	process_reorder_engine_for_warehouse()
-
-
-def update_supplier_scorecards():
-	"""Refresh scorecards for all suppliers based on recent purchase receipts."""
-	receipts = frappe.get_all(
-		"Purchase Receipt",
-		filters={"docstatus": 1},
-		fields=["name", "supplier", "posting_date"],
-		order_by="posting_date desc",
-	)
-	for receipt in receipts:
-		frappe.get_doc("Purchase Receipt", receipt.name).run_method("_update_supplier_scorecard")
-		frappe.db.commit()

@@ -202,18 +202,25 @@ def ensure_supplier_performance_workspace_link():
 		return
 
 	workspace = frappe.get_doc("Workspace", workspace)
-	workspace.set(
-		"links",
-		[link for link in workspace.links if link.label != "Supplier Performance"],
-	)
+	links = [link for link in workspace.links if link.label != "Supplier Performance"]
+	changed = len(links) != len(workspace.links)
+	if changed:
+		workspace.set("links", links)
 
 	for shortcut in workspace.shortcuts:
-		if shortcut.label == "Supplier Performance":
+		if shortcut.label == "Supplier Performance" and (
+			shortcut.type != "Dashboard" or shortcut.url or shortcut.link_to != "Supplier Performance"
+		):
 			shortcut.type = "Dashboard"
 			shortcut.url = None
 			shortcut.link_to = "Supplier Performance"
-	workspace.save(ignore_permissions=True)
-	frappe.db.commit()
+			changed = True
+
+	# Buying is a standard ERPNext workspace: in developer mode every save is exported
+	# back into ERPNext's own files, so only save when something actually changed
+	if changed:
+		workspace.save(ignore_permissions=True)
+		frappe.db.commit()
 
 
 def ensure_item_attributes():
@@ -305,7 +312,7 @@ def install_apparel_metadata():
 	ensure_custom_field(
 		"Item Reorder",
 		"custom_dynamic_lead_time_days",
-		"Int",
+		"Float",
 		"Dynamic Lead Time Days",
 		insert_after="warehouse",
 	)
